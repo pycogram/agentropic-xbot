@@ -1,0 +1,53 @@
+﻿# Content Topics Configuration
+
+[ai]
+enabled = true
+topics = [
+    "AI agents",
+    "neural networks",
+    "machine learning",
+    "AGI",
+    "AI alignment",
+    "transformer models",
+    "LLMs",
+    "multi-agent systems",
+    "autonomous agents",
+    "swarm intelligence"
+]
+
+[agentropic]
+enabled = true
+topics = [
+    "Rust framework",
+    "agent-oriented programming",
+    "BDI architecture",
+    "multi-agent coordination",
+    "production-ready agents",
+    "agentropic-core",
+    "agentropic-patterns",
+    "agentropic-runtime"
+]
+
+[crypto]
+enabled = true
+topics = [
+    "blockchain agents",
+    "DeFi automation",
+    "smart contracts",
+    "on-chain agents",
+    "MEV",
+    "algorithmic trading",
+    "crypto bots",
+    "Web3 agents"
+]
+
+[meme_coins]
+enabled = true
+topics = [
+    "AI tokens",
+    "agent coins",
+    "DOGE",
+    "meme economy",
+    "community tokens",
+    "viral coins"
+]
