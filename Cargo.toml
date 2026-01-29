@@ -1,0 +1,40 @@
+[package]
+name = "agentropic-xbot"
+version = "0.1.0"
+edition = "2021"
+authors = ["AgentropicAI"]
+
+[dependencies]
+# Twitter API
+egg-mode = "0.16"
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+tokio-cron-scheduler = "0.10"
+
+# Data structures
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Random generation
+rand = "0.8"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json"] }
+
+# Environment variables
+dotenv = "0.15"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Configuration
+toml = "0.8"
+
+[dev-dependencies]
+tokio-test = "0.4"
