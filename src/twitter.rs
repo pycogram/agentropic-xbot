@@ -1,8 +1,8 @@
 use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::env;
 use std::collections::BTreeMap;
+use std::env;
 
 pub struct TwitterClient {
     client: Client,
@@ -31,11 +31,15 @@ pub struct TweetData {
 
 impl TwitterClient {
     pub fn new() -> Result<Self> {
-        let consumer_key = env::var("TWITTER_CONSUMER_KEY")?;
-        let consumer_secret = env::var("TWITTER_CONSUMER_SECRET")?;
-        let access_token = env::var("TWITTER_ACCESS_TOKEN")?;
-        let access_token_secret = env::var("TWITTER_ACCESS_TOKEN_SECRET")?;
-        
+        let consumer_key = env::var("TWITTER_CONSUMER_KEY")
+            .map_err(|_| anyhow::anyhow!("TWITTER_CONSUMER_KEY not set"))?;
+        let consumer_secret = env::var("TWITTER_CONSUMER_SECRET")
+            .map_err(|_| anyhow::anyhow!("TWITTER_CONSUMER_SECRET not set"))?;
+        let access_token = env::var("TWITTER_ACCESS_TOKEN")
+            .map_err(|_| anyhow::anyhow!("TWITTER_ACCESS_TOKEN not set"))?;
+        let access_token_secret = env::var("TWITTER_ACCESS_TOKEN_SECRET")
+            .map_err(|_| anyhow::anyhow!("TWITTER_ACCESS_TOKEN_SECRET not set"))?;
+
         Ok(Self {
             client: Client::new(),
             consumer_key,
@@ -47,15 +51,15 @@ impl TwitterClient {
 
     pub async fn post_tweet(&self, text: &str) -> Result<TweetResponse> {
         let url = "https://api.twitter.com/2/tweets";
-        
+
         let tweet_request = TweetRequest {
             text: text.to_string(),
         };
 
-        // Create OAuth 1.0a authorization header
         let auth_header = self.create_oauth_header("POST", url)?;
 
-        let response = self.client
+        let response = self
+            .client
             .post(url)
             .header("Authorization", auth_header)
             .header("Content-Type", "application/json")
@@ -74,19 +78,18 @@ impl TwitterClient {
     }
 
     fn create_oauth_header(&self, method: &str, url: &str) -> Result<String> {
-        use hmac::{Hmac, Mac};
-        use sha1::Sha1;
-        use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+        use base64::{engine::general_purpose, Engine as _};
         use chrono::Utc;
-        use base64::{Engine as _, engine::general_purpose};
-        
+        use hmac::{Hmac, Mac};
+        use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+        use sha1::Sha1;
+
         type HmacSha1 = Hmac<Sha1>;
 
-        // OAuth parameters
         let timestamp = Utc::now().timestamp().to_string();
         let nonce: String = rand::random::<u64>().to_string();
 
-        // Collect all OAuth parameters
+        // Collect all OAuth parameters (BTreeMap keeps them sorted)
         let mut params = BTreeMap::new();
         params.insert("oauth_consumer_key", self.consumer_key.as_str());
         params.insert("oauth_nonce", nonce.as_str());
@@ -95,16 +98,20 @@ impl TwitterClient {
         params.insert("oauth_token", self.access_token.as_str());
         params.insert("oauth_version", "1.0");
 
-        // Create parameter string (sorted alphabetically)
+        // Create parameter string
         let param_string = params
             .iter()
-            .map(|(k, v)| format!("{}={}", 
-                utf8_percent_encode(k, NON_ALPHANUMERIC),
-                utf8_percent_encode(v, NON_ALPHANUMERIC)))
+            .map(|(k, v)| {
+                format!(
+                    "{}={}",
+                    utf8_percent_encode(k, NON_ALPHANUMERIC),
+                    utf8_percent_encode(v, NON_ALPHANUMERIC)
+                )
+            })
             .collect::<Vec<_>>()
             .join("&");
 
-        // Create signature base string
+        // Signature base string
         let signature_base = format!(
             "{}&{}&{}",
             method,
@@ -112,14 +119,14 @@ impl TwitterClient {
             utf8_percent_encode(&param_string, NON_ALPHANUMERIC)
         );
 
-        // Create signing key
+        // Signing key
         let signing_key = format!(
             "{}&{}",
             utf8_percent_encode(&self.consumer_secret, NON_ALPHANUMERIC),
             utf8_percent_encode(&self.access_token_secret, NON_ALPHANUMERIC)
         );
 
-        // Generate signature
+        // HMAC-SHA1 signature
         let mut mac = HmacSha1::new_from_slice(signing_key.as_bytes())
             .map_err(|e| anyhow::anyhow!("HMAC error: {}", e))?;
         mac.update(signature_base.as_bytes());
