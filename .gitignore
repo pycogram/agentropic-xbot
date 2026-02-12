@@ -1,8 +1,15 @@
-﻿/target
-**/*.rs.bk
-*.pdb
-.DS_Store
-Cargo.lock
+﻿# Environment variables (contains API keys!)
 .env
-.env.example
-*.log
+
+# Build artifacts
+/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
