@@ -60,7 +60,7 @@ impl BotConfig {
 
     pub fn get_enabled_categories(&self) -> Vec<ContentCategory> {
         let mut categories = Vec::new();
-        
+
         if self.enable_ai {
             categories.push(ContentCategory::AI);
         }
@@ -73,7 +73,7 @@ impl BotConfig {
         if self.enable_meme {
             categories.push(ContentCategory::Meme);
         }
-        
+
         categories
     }
 }
