@@ -10,7 +10,7 @@ use tokio_cron_scheduler::{JobScheduler, Job};
 use tracing::{info, warn, error};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use chrono::{Utc, Datelike};
+use chrono::{Utc, NaiveDate};
 
 use generators::TweetGenerator;
 use filters::ContentFilter;
@@ -20,7 +20,7 @@ use twitter::TwitterClient;
 /// Tracks daily post count and resets each day
 struct PostTracker {
     count: u32,
-    day: u32,
+    day: NaiveDate,
     max_per_day: u32,
 }
 
@@ -28,14 +28,14 @@ impl PostTracker {
     fn new(max_per_day: u32) -> Self {
         Self {
             count: 0,
-            day: Utc::now().ordinal(),
+            day: Utc::now().date_naive(),
             max_per_day,
         }
     }
 
     /// Returns true if we can post, false if daily limit reached
     fn try_post(&mut self) -> bool {
-        let today = Utc::now().ordinal();
+        let today = Utc::now().date_naive();
 
         // Reset counter on new day
         if today != self.day {
@@ -155,10 +155,27 @@ async fn post_tweet(
     let preview = validated_tweet.chars().take(50).collect::<String>();
     info!("Tweet preview: {}...", preview);
 
-    // Post to Twitter
-    let response = client.post_tweet(&validated_tweet).await?;
+    // Post to Twitter with retry logic
+    const MAX_RETRIES: u32 = 3;
+    let mut last_error = None;
 
-    info!("Tweet posted successfully! ID: {}", response.data.id);
+    for attempt in 1..=MAX_RETRIES {
+        match client.post_tweet(&validated_tweet).await {
+            Ok(response) => {
+                info!("Tweet posted successfully! ID: {}", response.data.id);
+                return Ok(());
+            }
+            Err(e) => {
+                warn!("Tweet attempt {}/{} failed: {}", attempt, MAX_RETRIES, e);
+                last_error = Some(e);
+                if attempt < MAX_RETRIES {
+                    let backoff = std::time::Duration::from_secs(2u64.pow(attempt));
+                    info!("Retrying in {:?}...", backoff);
+                    tokio::time::sleep(backoff).await;
+                }
+            }
+        }
+    }
 
-    Ok(())
+    Err(last_error.unwrap())
 }
