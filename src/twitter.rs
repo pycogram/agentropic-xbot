@@ -29,6 +29,23 @@ pub struct TweetData {
     pub text: String,
 }
 
+/// RFC 3986 percent-encoding for OAuth 1.0a
+/// Encodes everything EXCEPT unreserved characters: A-Z, a-z, 0-9, '-', '.', '_', '~'
+fn percent_encode(input: &str) -> String {
+    let mut encoded = String::new();
+    for byte in input.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(byte as char);
+            }
+            _ => {
+                encoded.push_str(&format!("%{:02X}", byte));
+            }
+        }
+    }
+    encoded
+}
+
 impl TwitterClient {
     pub fn new() -> Result<Self> {
         let consumer_key = env::var("TWITTER_CONSUMER_KEY")
@@ -50,7 +67,7 @@ impl TwitterClient {
     }
 
     pub async fn post_tweet(&self, text: &str) -> Result<TweetResponse> {
-        let url = "https://api.twitter.com/2/tweets";
+        let url = "https://api.x.com/2/tweets";
 
         let tweet_request = TweetRequest {
             text: text.to_string(),
@@ -81,7 +98,6 @@ impl TwitterClient {
         use base64::{engine::general_purpose, Engine as _};
         use chrono::Utc;
         use hmac::{Hmac, Mac};
-        use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
         use sha1::Sha1;
 
         type HmacSha1 = Hmac<Sha1>;
@@ -98,15 +114,11 @@ impl TwitterClient {
         params.insert("oauth_token", self.access_token.as_str());
         params.insert("oauth_version", "1.0");
 
-        // Create parameter string
+        // Create parameter string using RFC 3986 encoding
         let param_string = params
             .iter()
             .map(|(k, v)| {
-                format!(
-                    "{}={}",
-                    utf8_percent_encode(k, NON_ALPHANUMERIC),
-                    utf8_percent_encode(v, NON_ALPHANUMERIC)
-                )
+                format!("{}={}", percent_encode(k), percent_encode(v))
             })
             .collect::<Vec<_>>()
             .join("&");
@@ -115,15 +127,15 @@ impl TwitterClient {
         let signature_base = format!(
             "{}&{}&{}",
             method,
-            utf8_percent_encode(url, NON_ALPHANUMERIC),
-            utf8_percent_encode(&param_string, NON_ALPHANUMERIC)
+            percent_encode(url),
+            percent_encode(&param_string)
         );
 
         // Signing key
         let signing_key = format!(
             "{}&{}",
-            utf8_percent_encode(&self.consumer_secret, NON_ALPHANUMERIC),
-            utf8_percent_encode(&self.access_token_secret, NON_ALPHANUMERIC)
+            percent_encode(&self.consumer_secret),
+            percent_encode(&self.access_token_secret)
         );
 
         // HMAC-SHA1 signature
@@ -135,11 +147,11 @@ impl TwitterClient {
         // Build authorization header
         let auth_header = format!(
             r#"OAuth oauth_consumer_key="{}", oauth_nonce="{}", oauth_signature="{}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="{}", oauth_token="{}", oauth_version="1.0""#,
-            utf8_percent_encode(&self.consumer_key, NON_ALPHANUMERIC),
-            utf8_percent_encode(&nonce, NON_ALPHANUMERIC),
-            utf8_percent_encode(&signature, NON_ALPHANUMERIC),
+            percent_encode(&self.consumer_key),
+            percent_encode(&nonce),
+            percent_encode(&signature),
             timestamp,
-            utf8_percent_encode(&self.access_token, NON_ALPHANUMERIC)
+            percent_encode(&self.access_token)
         );
 
         Ok(auth_header)
