@@ -38,7 +38,6 @@ impl TweetGenerator {
         if with_sig.len() <= MAX_TWEET_LENGTH {
             with_sig
         } else {
-            // Skip signature to stay within limit
             warn!(
                 "Tweet is {} chars; skipping signature to stay within {} limit",
                 with_sig.len(),
@@ -59,9 +58,8 @@ impl TweetGenerator {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_generate_produces_content() {
-        let config = BotConfig {
+    fn test_config() -> BotConfig {
+        BotConfig {
             bot_username: "test".to_string(),
             post_interval_hours: 6,
             max_posts_per_day: 4,
@@ -69,8 +67,15 @@ mod tests {
             enable_meme: true,
             enable_ai: true,
             enable_agentropic: true,
-        };
+            enable_replies: false,
+            mention_poll_seconds: 300,
+            twitter_user_id: None,
+        }
+    }
 
+    #[test]
+    fn test_generate_produces_content() {
+        let config = test_config();
         let tweet = TweetGenerator::generate(&config);
         assert!(!tweet.is_empty());
     }
@@ -79,22 +84,12 @@ mod tests {
     fn test_signature_respects_length() {
         let long_tweet = "a".repeat(270);
         let result = TweetGenerator::add_signature(long_tweet.clone(), "testbot");
-        // Should skip signature since 270 + signature > 280
         assert_eq!(result, long_tweet);
     }
 
     #[test]
     fn test_create_tweet_within_limit() {
-        let config = BotConfig {
-            bot_username: "test".to_string(),
-            post_interval_hours: 6,
-            max_posts_per_day: 4,
-            enable_crypto: true,
-            enable_meme: true,
-            enable_ai: true,
-            enable_agentropic: true,
-        };
-
+        let config = test_config();
         let tweet = TweetGenerator::create_tweet(&config);
         assert!(tweet.len() <= 280);
     }
