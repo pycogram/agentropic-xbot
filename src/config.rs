@@ -10,6 +10,10 @@ pub struct BotConfig {
     pub enable_meme: bool,
     pub enable_ai: bool,
     pub enable_agentropic: bool,
+    // Reply settings
+    pub enable_replies: bool,
+    pub mention_poll_seconds: u64,
+    pub twitter_user_id: Option<String>,
 }
 
 impl BotConfig {
@@ -35,11 +39,22 @@ impl BotConfig {
             enable_agentropic: env::var("ENABLE_AGENTROPIC_CONTENT")
                 .unwrap_or_else(|_| "true".to_string())
                 .to_lowercase() == "true",
+            enable_replies: env::var("ENABLE_REPLIES")
+                .unwrap_or_else(|_| "true".to_string())
+                .to_lowercase() == "true",
+            mention_poll_seconds: env::var("MENTION_POLL_SECONDS")
+                .unwrap_or_else(|_| "300".to_string())
+                .parse()?,
+            twitter_user_id: env::var("TWITTER_USER_ID").ok(),
         })
     }
 
     pub fn get_cron_expression(&self) -> String {
         format!("0 0 */{} * * *", self.post_interval_hours)
+    }
+
+    pub fn get_mention_cron(&self) -> String {
+        format!("0 */{} * * * *", self.mention_poll_seconds / 60)
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -53,6 +68,10 @@ impl BotConfig {
 
         if !self.enable_crypto && !self.enable_meme && !self.enable_ai && !self.enable_agentropic {
             anyhow::bail!("At least one content type must be enabled");
+        }
+
+        if self.enable_replies && self.mention_poll_seconds < 60 {
+            anyhow::bail!("MENTION_POLL_SECONDS must be at least 60");
         }
 
         Ok(())
